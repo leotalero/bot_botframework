@@ -1,6 +1,31 @@
 var restify = require('restify');
 var builder = require('botbuilder');
-//const bot = require('./bot.js');
+
+var apiai = require('apiai');
+var app = apiai("84f6469c02c2406db34ba17e7a74a5a1");
+
+
+
+
+
+
+/*
+var request = app.textRequest('despiertame a las 10 am', {
+    sessionId: ' Math.random()'
+});
+
+request.on('response', function(response) {
+    console.log(response);
+});
+
+request.on('error', function(error) {
+    console.log(error);
+});
+
+request.end();
+*/
+
+
 // Setup Restify Server
 var server = restify.createServer();
 server.listen(process.env.port || process.env.PORT || 3978, function () {
@@ -11,6 +36,8 @@ server.listen(process.env.port || process.env.PORT || 3978, function () {
 var connector = new builder.ChatConnector({
     appId: process.env.MICROSOFT_APP_ID,
     appPassword: process.env.MICROSOFT_APP_PASSWORD
+	//appId: process.env.2ec20dc4-244f-4d88-89ab-f544cabba17b,
+    //appPassword: process.env.zbxDyJvrhXFDKn3bKCzbgPk
 });
 
 // Listen for messages from users 
@@ -40,6 +67,74 @@ var bot = new builder.UniversalBot(connector, [
         session.endConversation(message);
     },
 ]);
+
+
+
+// Install a custom recognizer to look for user saying 'help' or 'goodbye'.
+bot.recognizer({
+  recognize: function (context,callback) {
+	    var request = app.textRequest(context.message.text, {
+            sessionId: 'Math.random()'
+            
+        });
+      
+        request.on('response', function (response) {
+            var result = response.result;
+
+            callback(null, {
+                intent: result.metadata.intentName,
+                score: result.score,
+                entities: Object.keys(result.parameters)
+                    .filter(key => !!result.parameters[key])
+                    .map(key => ({
+                        entity: result.parameters[key],
+                        type: key,
+                        score: 1
+                    })),
+				fulfillment:result.fulfillment	
+					
+            });
+			
+        });
+
+        request.on('error', function (error) {
+            callback(error);
+        });
+
+        request.end();
+    }
+});
+
+// Add a global LUIS recognizer to the bot by using the endpoint URL of the LUIS app
+//var model = 'https://westus.api.cognitive.microsoft.com/luis/v2.0/apps/9a8fa015-c655-47eb-b676-365f39fd9ffc?subscription-key=559f5cafd3d74e2488cc1383562efece&verbose=true&timezoneOffset=0&q=';
+//bot.recognizer(new builder.LuisRecognizer(model));
+
+
+
+// Add a help dialog with a trigger action that is bound to the 'Help' intent
+bot.dialog('helpDialog', function (session) {
+    session.endDialog("This bot will echo back anything you say. Say 'goodbye' to quit.");
+}).triggerAction({ matches: 'Help' });
+
+bot.dialog('wakemeup', function(session, args){ 
+		console.log('args: '+JSON.stringify(args));
+	var fulfillment = args.intent.fulfillment;
+		console.log('fulfillment: '+fulfillment);
+	if (fulfillment){ 
+	console.log('if: entr al if');
+	 var speech = fulfillment.speech; 
+	 session.send(speech); }
+	 else{ 
+	 session.send('Sorry...not sure how to respond to that'); 
+	 }
+	 }).triggerAction({ matches: 'wake me up' });
+
+// Add a global endConversation() action that is bound to the 'Goodbye' intent
+bot.endConversationAction('goodbyeAction', "Ok... See you later.", { matches: 'Goodbye' });
+
+
+
+
 
 bot.dialog('AddNumber', [
     (session, args, next) => {
@@ -95,3 +190,9 @@ bot.dialog('Help', [
 .triggerAction({
     matches: /^help/i	
     });
+
+	
+
+	
+	
+	
